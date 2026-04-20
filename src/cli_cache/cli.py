@@ -5,7 +5,6 @@ from cli_cache.cache import clear_all_cache, delete_cache, read_cache, write_cac
 from cli_cache.runner import run_command
 from cli_cache.session import check_session, expire_session, get_session_key, show_session_status
 
-DEFAULT_TTL = 3600
 DEFAULT_SESSION_TTL = 3600
 
 
@@ -21,12 +20,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cli-cache",
         description="Wrap any CLI command and cache its stdout output with encryption.",
-        epilog="Example: cli-cache --ttl 300 -- secret-tool get my-key",
+        epilog="Example: cli-cache --session-ttl 1800 -- secret-tool get my-key",
     )
-    parser.add_argument("--ttl", type=int, default=DEFAULT_TTL, metavar="SEC",
-                        help=f"Cache TTL in seconds (default: {DEFAULT_TTL})")
     parser.add_argument("--session-ttl", type=int, default=DEFAULT_SESSION_TTL, metavar="SEC",
-                        help=f"Session TTL in seconds (default: {DEFAULT_SESSION_TTL})")
+                        help=f"Session (and cache) TTL in seconds (default: {DEFAULT_SESSION_TTL})")
     parser.add_argument("--clear", action="store_true",
                         help="Delete cache for the specified command, then exit (requires --)")
     parser.add_argument("--clear-all", action="store_true",
@@ -71,7 +68,7 @@ def main() -> None:
             print(f"Cache not found: {' '.join(cmd_parts)}")
         return
 
-    session_key = get_session_key(args.session_ttl)
+    session_key, session_expires_at = get_session_key(args.session_ttl)
 
     cached = read_cache(cmd_parts, session_key)
     if cached is not None:
@@ -80,5 +77,5 @@ def main() -> None:
 
     print(f"[cache miss] running: {' '.join(cmd_parts)}", file=sys.stderr)
     value = run_command(cmd_parts)
-    write_cache(cmd_parts, value, session_key, args.ttl)
+    write_cache(cmd_parts, value, session_key, session_expires_at)
     sys.stdout.write(value)

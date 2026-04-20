@@ -22,11 +22,8 @@ The `--` separator strictly delimits cli-cache's own options from the wrapped co
 # Basic usage — prompts for a master password on first run
 cli-cache -- secret-tool get my-api-key
 
-# Custom cache TTL (5 minutes)
-cli-cache --ttl 300 -- secret-tool get my-api-key
-
 # Custom session TTL (30 minutes)
-cli-cache --ttl 300 --session-ttl 1800 -- secret-tool get my-api-key
+cli-cache --session-ttl 1800 -- secret-tool get my-api-key
 
 # Delete cache for a specific command
 cli-cache --clear -- secret-tool get my-api-key
@@ -37,6 +34,9 @@ cli-cache --clear-all
 # Check remaining session time
 cli-cache --session-status
 
+# Check session validity via exit code (0 = valid, 1 = expired/missing)
+cli-cache --session-check
+
 # Manually expire the session
 cli-cache --session-expire
 ```
@@ -45,12 +45,12 @@ cli-cache --session-expire
 
 | Option | Default | Description |
 |---|---|---|
-| `--ttl SEC` | 3600 | Cache entry TTL in seconds |
-| `--session-ttl SEC` | 3600 | Session validity duration in seconds |
+| `--session-ttl SEC` | 3600 | Session and cache TTL in seconds |
 | `--clear` | — | Delete cache for the specified command, then exit |
 | `--clear-all` | — | Delete all cache entries, then exit |
 | `--session-expire` | — | Destroy the current session, then exit |
 | `--session-status` | — | Print remaining session time, then exit |
+| `--session-check` | — | Exit 0 if session is valid, exit 1 if expired or missing (no output) |
 
 ## Environment Variables
 
@@ -61,6 +61,8 @@ cli-cache --session-expire
 ## How It Works
 
 On the first run (or after session expiry), cli-cache prompts for a master password to create a new session. Subsequent invocations within the session TTL require no password — the session key is read directly from `~/.cache/cli-cache/.session` (chmod 600).
+
+Cache entries share the same expiry as the session. When the session expires, all cache entries become inaccessible (a new session uses a new encryption key).
 
 Cache files are stored as AES-256-GCM encrypted blobs under `~/.cache/cli-cache/`, keyed by SHA-256 of the full command string.
 
@@ -75,7 +77,7 @@ Cache files are stored as AES-256-GCM encrypted blobs under `~/.cache/cli-cache/
 - Cache files are encrypted with AES-256-GCM using a per-session key
 - The session key is stored in `~/.cache/cli-cache/.session` (chmod 600)
 - Master password is only required when creating a new session
-- Expired sessions invalidate all existing cache entries (new session = new key)
+- Session expiry invalidates all existing cache entries (new session = new key)
 
 ## Development
 

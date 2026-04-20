@@ -14,15 +14,19 @@ from cli_cache.session import (
 )
 
 
-def test_create_session_returns_key(tmp_path):
-    session_key = _create_session(session_ttl=3600, cache_dir=tmp_path)
+def test_create_session_returns_key_and_expiry(tmp_path):
+    session_key, expires_at = _create_session(session_ttl=3600, cache_dir=tmp_path)
     assert len(session_key) == 32
+    assert expires_at > time.time()
 
 
 def test_read_session_key_after_create(tmp_path):
-    session_key = _create_session(session_ttl=3600, cache_dir=tmp_path)
-    loaded = _read_session_key(cache_dir=tmp_path)
-    assert loaded == session_key
+    session_key, expires_at = _create_session(session_ttl=3600, cache_dir=tmp_path)
+    result = _read_session_key(cache_dir=tmp_path)
+    assert result is not None
+    loaded_key, loaded_expires_at = result
+    assert loaded_key == session_key
+    assert abs(loaded_expires_at - expires_at) < 1
 
 
 def test_read_session_key_no_file(tmp_path):
@@ -37,24 +41,25 @@ def test_read_session_key_expired(tmp_path):
 def test_get_session_key_no_password_when_valid(tmp_path):
     _create_session(session_ttl=3600, cache_dir=tmp_path)
     with patch("getpass.getpass") as mock_getpass:
-        key = get_session_key(session_ttl=3600, cache_dir=tmp_path)
+        session_key, expires_at = get_session_key(session_ttl=3600, cache_dir=tmp_path)
         mock_getpass.assert_not_called()
-    assert len(key) == 32
+    assert len(session_key) == 32
+    assert expires_at > time.time()
 
 
 def test_get_session_key_prompts_when_no_session(tmp_path):
     with patch("getpass.getpass", return_value="password") as mock_getpass:
-        key = get_session_key(session_ttl=3600, cache_dir=tmp_path)
+        session_key, expires_at = get_session_key(session_ttl=3600, cache_dir=tmp_path)
         mock_getpass.assert_called_once()
-    assert len(key) == 32
+    assert len(session_key) == 32
 
 
 def test_get_session_key_prompts_when_expired(tmp_path):
     _create_session(session_ttl=-1, cache_dir=tmp_path)
     with patch("getpass.getpass", return_value="password") as mock_getpass:
-        key = get_session_key(session_ttl=3600, cache_dir=tmp_path)
+        session_key, expires_at = get_session_key(session_ttl=3600, cache_dir=tmp_path)
         mock_getpass.assert_called_once()
-    assert len(key) == 32
+    assert len(session_key) == 32
 
 
 def test_expire_session(tmp_path, capsys):
@@ -62,17 +67,6 @@ def test_expire_session(tmp_path, capsys):
     expire_session(cache_dir=tmp_path)
     assert not (tmp_path / ".session").exists()
     assert "Session destroyed" in capsys.readouterr().out
-
-
-def test_show_session_status_active(tmp_path, capsys):
-    _create_session(session_ttl=3600, cache_dir=tmp_path)
-    show_session_status(cache_dir=tmp_path)
-    assert "remaining" in capsys.readouterr().out
-
-
-def test_show_session_status_no_session(tmp_path, capsys):
-    show_session_status(cache_dir=tmp_path)
-    assert "No active session" in capsys.readouterr().out
 
 
 def test_check_session_valid(tmp_path):
@@ -87,6 +81,17 @@ def test_check_session_no_session(tmp_path):
 def test_check_session_expired(tmp_path):
     _create_session(session_ttl=-1, cache_dir=tmp_path)
     assert check_session(cache_dir=tmp_path) is False
+
+
+def test_show_session_status_active(tmp_path, capsys):
+    _create_session(session_ttl=3600, cache_dir=tmp_path)
+    show_session_status(cache_dir=tmp_path)
+    assert "remaining" in capsys.readouterr().out
+
+
+def test_show_session_status_no_session(tmp_path, capsys):
+    show_session_status(cache_dir=tmp_path)
+    assert "No active session" in capsys.readouterr().out
 
 
 def test_show_session_status_expired(tmp_path, capsys):

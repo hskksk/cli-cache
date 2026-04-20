@@ -7,8 +7,8 @@ from cli_cache.cli import build_parser, split_args
 
 
 def test_split_args_with_separator():
-    our, cmd = split_args(["--ttl", "300", "--", "echo", "hello"])
-    assert our == ["--ttl", "300"]
+    our, cmd = split_args(["--session-ttl", "300", "--", "echo", "hello"])
+    assert our == ["--session-ttl", "300"]
     assert cmd == ["echo", "hello"]
 
 
@@ -27,7 +27,6 @@ def test_split_args_empty():
 def test_parser_defaults():
     parser = build_parser()
     args = parser.parse_args([])
-    assert args.ttl == 3600
     assert args.session_ttl == 3600
     assert args.clear is False
     assert args.clear_all is False
@@ -35,10 +34,10 @@ def test_parser_defaults():
     assert args.session_status is False
 
 
-def test_parser_ttl():
+def test_parser_session_ttl():
     parser = build_parser()
-    args = parser.parse_args(["--ttl", "300"])
-    assert args.ttl == 300
+    args = parser.parse_args(["--session-ttl", "300"])
+    assert args.session_ttl == 300
 
 
 def test_integration_cache_hit(tmp_path):

@@ -38,10 +38,10 @@ def read_cache(cmd_parts: list[str], session_key: bytes, cache_dir: Path = _DEFA
         return None
 
 
-def write_cache(cmd_parts: list[str], value: str, session_key: bytes, ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> None:
+def write_cache(cmd_parts: list[str], value: str, session_key: bytes, expires_at: float, cache_dir: Path = _DEFAULT_CACHE_DIR) -> None:
     _ensure_cache_dir(cache_dir)
     key = _command_cache_key(cmd_parts)
-    entry = json.dumps({"value": value, "expires_at": time.time() + ttl}).encode()
+    entry = json.dumps({"value": value, "expires_at": expires_at}).encode()
     path = _cache_path(key, cache_dir)
     path.write_bytes(_encrypt(entry, session_key))
     path.chmod(0o600)

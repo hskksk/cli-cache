@@ -20,7 +20,7 @@ def _ensure_cache_dir(cache_dir: Path) -> None:
     cache_dir.chmod(0o700)
 
 
-def _read_session_key(cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes | None:
+def _read_session_key(cache_dir: Path = _DEFAULT_CACHE_DIR) -> tuple[bytes, float] | None:
     sf = _session_file(cache_dir)
     if not sf.exists():
         return None
@@ -29,36 +29,37 @@ def _read_session_key(cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes | None:
         if time.time() > data["expires_at"]:
             sf.unlink(missing_ok=True)
             return None
-        return bytes.fromhex(data["session_key"])
+        return bytes.fromhex(data["session_key"]), data["expires_at"]
     except Exception:
         return None
 
 
-def _create_session(session_ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes:
+def _create_session(session_ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> tuple[bytes, float]:
     _ensure_cache_dir(cache_dir)
     session_key = secrets.token_bytes(AES_KEY_BITS // 8)
+    expires_at = time.time() + session_ttl
     data = {
         "session_key": session_key.hex(),
-        "expires_at": time.time() + session_ttl,
+        "expires_at": expires_at,
     }
     sf = _session_file(cache_dir)
     sf.write_text(json.dumps(data))
     sf.chmod(0o600)
-    return session_key
+    return session_key, expires_at
 
 
-def get_session_key(session_ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes:
-    session_key = _read_session_key(cache_dir)
-    if session_key is not None:
-        return session_key
+def get_session_key(session_ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> tuple[bytes, float]:
+    result = _read_session_key(cache_dir)
+    if result is not None:
+        return result
 
     if _session_file(cache_dir).exists():
         print("Session expired. Creating a new session.", file=sys.stderr)
 
     getpass.getpass("Master password (new session): ", stream=sys.stderr)
-    session_key = _create_session(session_ttl, cache_dir)
+    session_key, expires_at = _create_session(session_ttl, cache_dir)
     print(f"Session created (TTL: {session_ttl}s)", file=sys.stderr)
-    return session_key
+    return session_key, expires_at
 
 
 def check_session(cache_dir: Path = _DEFAULT_CACHE_DIR) -> bool:
