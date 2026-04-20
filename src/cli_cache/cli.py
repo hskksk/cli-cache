@@ -3,7 +3,7 @@ import sys
 
 from cli_cache.cache import clear_all_cache, delete_cache, read_cache, write_cache
 from cli_cache.runner import run_command
-from cli_cache.session import expire_session, get_session_key, show_session_status
+from cli_cache.session import check_session, expire_session, get_session_key, show_session_status
 
 DEFAULT_TTL = 3600
 DEFAULT_SESSION_TTL = 3600
@@ -35,6 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Destroy the current session, then exit")
     parser.add_argument("--session-status", action="store_true",
                         help="Print remaining session time, then exit")
+    parser.add_argument("--session-check", action="store_true",
+                        help="Exit 0 if session is valid, exit 1 if expired or missing (no output)")
     return parser
 
 
@@ -46,6 +48,9 @@ def main() -> None:
     if args.session_expire:
         expire_session()
         return
+
+    if args.session_check:
+        sys.exit(0 if check_session() else 1)
 
     if args.session_status:
         show_session_status()

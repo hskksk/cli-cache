@@ -7,6 +7,7 @@ import pytest
 from cli_cache.session import (
     _create_session,
     _read_session_key,
+    check_session,
     expire_session,
     get_session_key,
     show_session_status,
@@ -72,6 +73,20 @@ def test_show_session_status_active(tmp_path, capsys):
 def test_show_session_status_no_session(tmp_path, capsys):
     show_session_status(cache_dir=tmp_path)
     assert "No active session" in capsys.readouterr().out
+
+
+def test_check_session_valid(tmp_path):
+    _create_session(session_ttl=3600, cache_dir=tmp_path)
+    assert check_session(cache_dir=tmp_path) is True
+
+
+def test_check_session_no_session(tmp_path):
+    assert check_session(cache_dir=tmp_path) is False
+
+
+def test_check_session_expired(tmp_path):
+    _create_session(session_ttl=-1, cache_dir=tmp_path)
+    assert check_session(cache_dir=tmp_path) is False
 
 
 def test_show_session_status_expired(tmp_path, capsys):

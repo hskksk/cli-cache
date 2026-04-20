@@ -61,6 +61,11 @@ def get_session_key(session_ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> b
     return session_key
 
 
+def check_session(cache_dir: Path = _DEFAULT_CACHE_DIR) -> bool:
+    """Return True if a valid session exists, False otherwise."""
+    return _read_session_key(cache_dir) is not None
+
+
 def expire_session(cache_dir: Path = _DEFAULT_CACHE_DIR) -> None:
     _session_file(cache_dir).unlink(missing_ok=True)
     print("Session destroyed.")
