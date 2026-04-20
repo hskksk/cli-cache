@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-from cli_cache.crypto import AES_KEY_BITS, SALT_BYTES, _derive_key, _decrypt, _encrypt
+from cli_cache.crypto import AES_KEY_BITS
 
 _DEFAULT_CACHE_DIR = Path(os.environ.get("CLI_CACHE_DIR", Path.home() / ".cache" / "cli-cache"))
 
@@ -20,7 +20,7 @@ def _ensure_cache_dir(cache_dir: Path) -> None:
     cache_dir.chmod(0o700)
 
 
-def _load_session(password: str, cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes | None:
+def _read_session_key(cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes | None:
     sf = _session_file(cache_dir)
     if not sf.exists():
         return None
@@ -29,21 +29,16 @@ def _load_session(password: str, cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes 
         if time.time() > data["expires_at"]:
             sf.unlink(missing_ok=True)
             return None
-        salt = bytes.fromhex(data["salt"])
-        enc_key = _derive_key(password, salt)
-        return _decrypt(bytes.fromhex(data["session_key_enc"]), enc_key)
+        return bytes.fromhex(data["session_key"])
     except Exception:
         return None
 
 
-def _create_session(password: str, session_ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes:
+def _create_session(session_ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes:
     _ensure_cache_dir(cache_dir)
     session_key = secrets.token_bytes(AES_KEY_BITS // 8)
-    salt = secrets.token_bytes(SALT_BYTES)
-    enc_key = _derive_key(password, salt)
     data = {
-        "salt": salt.hex(),
-        "session_key_enc": _encrypt(session_key, enc_key).hex(),
+        "session_key": session_key.hex(),
         "expires_at": time.time() + session_ttl,
     }
     sf = _session_file(cache_dir)
@@ -53,17 +48,15 @@ def _create_session(password: str, session_ttl: int, cache_dir: Path = _DEFAULT_
 
 
 def get_session_key(session_ttl: int, cache_dir: Path = _DEFAULT_CACHE_DIR) -> bytes:
-    sf = _session_file(cache_dir)
-    if sf.exists():
-        password = getpass.getpass("Master password: ", stream=sys.stderr)
-        session_key = _load_session(password, cache_dir)
-        if session_key is not None:
-            return session_key
-        print("Session expired. Creating a new session.", file=sys.stderr)
-    else:
-        password = getpass.getpass("Master password (new session): ", stream=sys.stderr)
+    session_key = _read_session_key(cache_dir)
+    if session_key is not None:
+        return session_key
 
-    session_key = _create_session(password, session_ttl, cache_dir)
+    if _session_file(cache_dir).exists():
+        print("Session expired. Creating a new session.", file=sys.stderr)
+
+    getpass.getpass("Master password (new session): ", stream=sys.stderr)
+    session_key = _create_session(session_ttl, cache_dir)
     print(f"Session created (TTL: {session_ttl}s)", file=sys.stderr)
     return session_key
 
