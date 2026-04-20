@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cli-cache"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["cryptography"]
+
+[project.scripts]
+cli-cache = "cli_cache.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cli_cache"]
+
+[tool.uv]
+dev-dependencies = ["pytest"]
