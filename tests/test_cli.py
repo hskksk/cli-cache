@@ -27,7 +27,7 @@ def test_split_args_empty():
 def test_parser_defaults():
     parser = build_parser()
     args = parser.parse_args([])
-    assert args.session_ttl == 3600
+    assert args.session_ttl == 86400
     assert args.clear is False
     assert args.clear_all is False
     assert args.session_expire is False
@@ -38,6 +38,51 @@ def test_parser_session_ttl():
     parser = build_parser()
     args = parser.parse_args(["--session-ttl", "300"])
     assert args.session_ttl == 300
+
+
+def test_integration_cache_check_miss():
+    """--cache-check exits 1 when session is valid but no cache exists."""
+    from cli_cache.cli import main
+
+    dummy_key = b"\x00" * 32
+    with (
+        patch("cli_cache.cli.check_session", return_value=True),
+        patch("cli_cache.cli.get_session_key", return_value=(dummy_key, 9999999999.0)),
+        patch("cli_cache.cli.check_cache", return_value=False),
+        patch("sys.argv", ["cli-cache", "--cache-check", "--", "echo", "hello"]),
+    ):
+        with pytest.raises(SystemExit) as exc:
+            main()
+        assert exc.value.code == 1
+
+
+def test_integration_cache_check_hit():
+    """--cache-check exits 0 when a valid cache entry exists."""
+    from cli_cache.cli import main
+
+    dummy_key = b"\x00" * 32
+    with (
+        patch("cli_cache.cli.check_session", return_value=True),
+        patch("cli_cache.cli.get_session_key", return_value=(dummy_key, 9999999999.0)),
+        patch("cli_cache.cli.check_cache", return_value=True),
+        patch("sys.argv", ["cli-cache", "--cache-check", "--", "echo", "hello"]),
+    ):
+        with pytest.raises(SystemExit) as exc:
+            main()
+        assert exc.value.code == 0
+
+
+def test_integration_cache_check_no_session():
+    """--cache-check exits 2 when no valid session exists."""
+    from cli_cache.cli import main
+
+    with (
+        patch("cli_cache.cli.check_session", return_value=False),
+        patch("sys.argv", ["cli-cache", "--cache-check", "--", "echo", "hello"]),
+    ):
+        with pytest.raises(SystemExit) as exc:
+            main()
+        assert exc.value.code == 2
 
 
 def test_integration_cache_hit(tmp_path):

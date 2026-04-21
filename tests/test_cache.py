@@ -4,6 +4,7 @@ import pytest
 
 from cli_cache.cache import (
     _command_cache_key,
+    check_cache,
     clear_all_cache,
     delete_cache,
     read_cache,
@@ -61,6 +62,29 @@ def test_delete_cache(tmp_path, session_key):
 
 def test_delete_cache_not_found(tmp_path):
     assert delete_cache(["no", "such", "cmd"], cache_dir=tmp_path) is False
+
+
+def test_check_cache_hit(tmp_path, session_key):
+    cmd = ["echo", "hello"]
+    write_cache(cmd, "hello\n", session_key, expires_at=time.time() + 3600, cache_dir=tmp_path)
+    assert check_cache(cmd, session_key, cache_dir=tmp_path) is True
+
+
+def test_check_cache_miss(tmp_path, session_key):
+    assert check_cache(["nonexistent"], session_key, cache_dir=tmp_path) is False
+
+
+def test_check_cache_expired(tmp_path, session_key):
+    cmd = ["echo", "hello"]
+    write_cache(cmd, "hello\n", session_key, expires_at=time.time() - 1, cache_dir=tmp_path)
+    assert check_cache(cmd, session_key, cache_dir=tmp_path) is False
+
+
+def test_check_cache_wrong_key(tmp_path, session_key):
+    cmd = ["echo", "hello"]
+    write_cache(cmd, "hello\n", session_key, expires_at=time.time() + 3600, cache_dir=tmp_path)
+    wrong_key = _derive_key("wrong", b"s" * 16)
+    assert check_cache(cmd, wrong_key, cache_dir=tmp_path) is False
 
 
 def test_clear_all_cache(tmp_path, session_key):
