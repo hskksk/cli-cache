@@ -5,7 +5,7 @@ from cli_cache.cache import clear_all_cache, delete_cache, read_cache, write_cac
 from cli_cache.runner import run_command
 from cli_cache.session import check_session, expire_session, get_session_key, show_session_status
 
-DEFAULT_SESSION_TTL = 3600
+DEFAULT_SESSION_TTL = 86400
 
 
 def split_args(argv: list[str]) -> tuple[list[str], list[str]]:
