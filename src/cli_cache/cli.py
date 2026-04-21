@@ -1,4 +1,5 @@
 import argparse
+import importlib.metadata
 import sys
 
 from cli_cache.cache import check_cache, clear_all_cache, delete_cache, read_cache, write_cache
@@ -22,6 +23,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Wrap any CLI command and cache its stdout output with encryption.",
         epilog="Example: cli-cache --session-ttl 1800 -- secret-tool get my-key",
     )
+    parser.add_argument("--version", action="version",
+                        version=f"%(prog)s {importlib.metadata.version('cli-cache')}")
     parser.add_argument("--session-ttl", type=int, default=DEFAULT_SESSION_TTL, metavar="SEC",
                         help=f"Session (and cache) TTL in seconds (default: {DEFAULT_SESSION_TTL})")
     parser.add_argument("--clear", action="store_true",
