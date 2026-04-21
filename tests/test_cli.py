@@ -27,7 +27,7 @@ def test_split_args_empty():
 def test_parser_defaults():
     parser = build_parser()
     args = parser.parse_args([])
-    assert args.session_ttl == 3600
+    assert args.session_ttl == 86400
     assert args.clear is False
     assert args.clear_all is False
     assert args.session_expire is False
