@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from cli_cache.cache import clear_all_cache, delete_cache, read_cache, write_cache
+from cli_cache.cache import check_cache, clear_all_cache, delete_cache, read_cache, write_cache
 from cli_cache.runner import run_command
 from cli_cache.session import check_session, expire_session, get_session_key, show_session_status
 
@@ -34,6 +34,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Print remaining session time, then exit")
     parser.add_argument("--session-check", action="store_true",
                         help="Exit 0 if session is valid, exit 1 if expired or missing (no output)")
+    parser.add_argument("--cache-check", action="store_true",
+                        help="Exit 0 if cache is valid, exit 1 if missing or expired, exit 2 if session is invalid (no output, requires --)")
     return parser
 
 
@@ -60,6 +62,12 @@ def main() -> None:
 
     if not cmd_parts:
         parser.error("Specify the command after --.\nExample: cli-cache -- secret-tool get my-key")
+
+    if args.cache_check:
+        if not check_session():
+            sys.exit(2)
+        session_key, _ = get_session_key(args.session_ttl)
+        sys.exit(0 if check_cache(cmd_parts, session_key) else 1)
 
     if args.clear:
         if delete_cache(cmd_parts):

@@ -22,6 +22,19 @@ def _cache_path(cache_key: str, cache_dir: Path) -> Path:
     return cache_dir / cache_key
 
 
+def check_cache(cmd_parts: list[str], session_key: bytes, cache_dir: Path = _DEFAULT_CACHE_DIR) -> bool:
+    key = _command_cache_key(cmd_parts)
+    path = _cache_path(key, cache_dir)
+    if not path.exists():
+        return False
+    try:
+        raw = _decrypt(path.read_bytes(), session_key)
+        entry = json.loads(raw)
+        return time.time() <= entry["expires_at"]
+    except Exception:
+        return False
+
+
 def read_cache(cmd_parts: list[str], session_key: bytes, cache_dir: Path = _DEFAULT_CACHE_DIR) -> str | None:
     key = _command_cache_key(cmd_parts)
     path = _cache_path(key, cache_dir)
